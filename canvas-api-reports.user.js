@@ -746,6 +746,7 @@
             var eURL = '/api/v1/courses/' + currCourse.course_id + '/enrollments?per_page=100';
             eURL += controls.rptType == 'instructor' ? '&role[]=TeacherEnrollment' : '';
             $.getJSON(eURL, function(edata, status, jqXHR) {
+                eURL = nextURL(jqXHR.getResponseHeader('Link')); // Get next page of results, if any
                 if (edata) {
                     for (var i = 0; i < edata.length; i++) {
                         progressbar(i, edata.length);
@@ -754,7 +755,11 @@
                     }
                 }
             }).done(function () {
+                if (eURL) {
+                    getEnrollments(eURL);
+                } else {
                 processEnrollments();
+                }
             }).fail(function() {
                 var errorDetail = 'enrollment,' + currCourse.course_id;
                 throw new Error(errorDetail);
