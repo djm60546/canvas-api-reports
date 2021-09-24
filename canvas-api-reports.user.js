@@ -734,7 +734,7 @@
     }
 
     // Get enrollment data for users that is course-specific
-    function getEnrollments() {
+    function getEnrollments(eURL) {
         // console.log('getEnrollments');
         $('#capir_report_status').text('Getting enrollments data...');
         if (controls.aborted) {
@@ -742,9 +742,6 @@
             return false;
         }
         try {
-
-            var eURL = '/api/v1/courses/' + currCourse.course_id + '/enrollments?per_page=100';
-            eURL += controls.rptType == 'instructor' ? '&role[]=TeacherEnrollment' : '';
             $.getJSON(eURL, function(edata, status, jqXHR) {
                 eURL = nextURL(jqXHR.getResponseHeader('Link')); // Get next page of results, if any
                 if (edata) {
@@ -794,7 +791,9 @@
                 if (uURL) {
                     getUsers(uURL);
                 } else {
-                    getEnrollments();
+                    var eURL = '/api/v1/courses/' + currCourse.course_id + '/enrollments?per_page=100';
+                    eURL += controls.rptType == 'instructor' ? '&role[]=TeacherEnrollment' : '';
+                    getEnrollments(eURL);
                 }
             });
         } catch (e) {
