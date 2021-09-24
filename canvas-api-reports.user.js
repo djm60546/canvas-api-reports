@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Canvas API Reports
 // @namespace    https://github.com/djm60546/canvas-api-reports
-// @version      1.52
+// @version      1.53
 // @description  Script for extracting student and instructor performance data using the Canvas API. Generates a .CSV download containing the data. Based on the Access Report Data script by James Jones.
 // @author       Dan Murphy, Northwestern University School of Professional Studies (dmurphy@northwestern.edu)
 // @match        https://canvas.northwestern.edu/accounts/*
@@ -129,9 +129,9 @@
         obj.course_id = currCourse.course_id;
         obj.course_name = currCourse.course_name;
         obj.enrollment_term_id = currCourse.enrollment_term_id;
-        obj.quarter_name = currCourse.quarter_name[0];
-        obj.section = currCourse.section[0];
-        obj.short_course_code = currCourse.short_code[0];
+        obj.quarter_name = (!currCourse.quarter_name || typeof currCourse.quarter_name === 'undefined') ? 'N/A' : currCourse.quarter_name;
+        obj.section = (!currCourse.section || typeof currCourse.section === 'undefined') ? 'N/A' : currCourse.section;
+        obj.short_course_code = (!currCourse.short_code || typeof currCourse.short_code === 'undefined') ? 'N/A' : currCourse.short_code;
         if (controls.rptType == 'at-risk' || controls.rptType == 'participation') {
             obj.teacher_name = currCourse.teacher_name;
             obj.teacher_email = currCourse.teacher_email;
@@ -611,7 +611,7 @@
                 if (adata.length === 0) {
                     var userID = controls.userArray[controls.userIndex];
                     var obj = enrollmentData[getEnrollmentID(userID)];
-                    writeNoAccesses(obj);
+                    if (obj && typeof(obj) != 'undefined') {writeNoAccesses(obj)};
                 }
                 for (var i = 0; i < adata.length; i++) {
                     var thisAccess = adata[i].asset_user_access;
