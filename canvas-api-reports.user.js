@@ -1797,7 +1797,7 @@
     // Add "Custom API Reports" link below navigation
     function addReportsLink() {
         if ($('#capir_access_report').length === 0) {
-            $('#left-side').append('<div class="rs-margin-bottom"><a id="capir_access_report"><span aria-hidden="true" style="color:#f92626; cursor: pointer; display: block; font-size: 1rem; line-height: 20px; margin: 5px auto; padding: 8px 0px 8px 6px;">Custom API Reports</span><span class="screenreader-only">Custom API Reports</span></a></div>');
+            $('#section-tabs').append('<li class="section"><a id="capir_access_report" style="color:#f92626; cursor:pointer">Custom API Reports<span class="screenreader-only">Custom API Reports</span></a></li>');
             //$('#capir_access_report').one('click', reportOptionsDlg);
             $('#capir_access_report').one('click', reportOptionsDlg);
         }
