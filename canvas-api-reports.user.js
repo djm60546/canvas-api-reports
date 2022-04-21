@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Canvas API Reports
 // @namespace    https://github.com/djm60546/canvas-api-reports
-// @version      1.54
+// @version      1.55
 // @description  Script for extracting student and instructor performance data using the Canvas API. Generates a .CSV download containing the data. Based on the Access Report Data script by James Jones.
 // @author       Dan Murphy, Northwestern University School of Professional Studies (dmurphy@northwestern.edu)
 // @match        https://canvas.northwestern.edu/accounts/*
@@ -135,6 +135,7 @@
         if (controls.rptType == 'at-risk' || controls.rptType == 'participation') {
             obj.teacher_name = currCourse.teacher_name;
             obj.teacher_email = currCourse.teacher_email;
+            obj.assignments_due = currCourse.assignments_due
         }
         if (controls.rptType == 'instructor') {
             obj.ttl_stdnts = currCourse.ttl_stdnts
@@ -400,7 +401,6 @@
             var late = thisEnrollment.assignments_late;
             var missing = thisEnrollment.assignments_missing;
             var score = thisEnrollment.grades.current_score;
-
             if (controls.rptType == 'at-risk') {
                 if (late > controls.atRisk.late || missing > controls.atRisk.mssg || time === controls.atRisk.time || posts === controls.atRisk.posts || score == controls.atRisk.scoreRaw || submissions === controls.atRisk.sbmssn) {
                     thisEnrollment.current_score = score < controls.atRisk.scoreRaw ? 'Low' : 'OK';
@@ -418,6 +418,8 @@
         controller('course_done');
     }
 
+    // Count assignments completed, late or missing. Count discussions as a subset of assignments
+    // Some faculty enter a grade of zero for late assignments, so these are counted as missing/not counted as complete
     function processStudentSubmissions() {
        // console.log('processStudentSubmissions');
         if (controls.aborted) {
@@ -432,11 +434,11 @@
             var thisEnrollment = enrollmentData[getEnrollmentID(userID)];
             var thisAssignment = assignmentData[thisSubmission.assignment_id];
             if ((typeof(thisEnrollment) != 'undefined' && thisEnrollment) && (typeof(thisAssignment) != 'undefined' && thisAssignment)) {
-                if (thisSubmission.workflow_state != 'unsubmitted' && thisSubmission.missing == false){
+                if (thisSubmission.missing == false && thisSubmission.workflow_state != 'unsubmitted' && thisSubmission.entered_score != 0){
                     var submitted = thisEnrollment.submitted + 1;
                     thisEnrollment.submitted = submitted;
                 }
-                if (thisSubmission.submission_type == 'discussion_topic' && thisSubmission.workflow_state != 'unsubmitted'){
+                if (thisSubmission.submission_type == 'discussion_topic' && thisSubmission.workflow_state != 'unsubmitted' && thisSubmission.entered_score != 0){
                     var discussions = thisEnrollment.discussion_posts + 1;
                     thisEnrollment.discussion_posts = discussions;
                 }
@@ -446,7 +448,7 @@
                     var late = thisEnrollment.assignments_late + 1;
                     thisEnrollment.assignments_late = late;
                 }
-                if (thisSubmission.missing == true && (thisSubmission.workflow_state == 'unsubmitted' || thisSubmission.entered_grade == "0")) {
+                if (thisSubmission.missing == true && (thisSubmission.workflow_state == 'unsubmitted' || thisSubmission.entered_score == 0)) {
                     var missing = thisEnrollment.assignments_missing + 1;
                     var timeMissing = thisSubmission.seconds_late;
                     if (timeMissing > thisEnrollment.max_days_missing) {thisEnrollment.max_days_missing = timeMissing}
@@ -574,7 +576,7 @@
                     thisAccess.user_role = thisEnrollment.role;
                     thisAccess.total_activity_time = thisEnrollment.total_activity_time;
                 } else if (controls.rptType == 'at-risk' || controls.rptType == 'instructor') {
-                    var regex = RegExp('(.jpg|.png|.svg|.mp(3|4|g))$'); // filter out media files from count of resource views
+                    var regex = RegExp('(.jpg|.png|.svg|.mp(3|4|g))$'); // filter out media files from count of resource views since this will inflate the page views values
                     var mediaFile = regex.test(thisAccess.readable_name);
                     if (!mediaFile) {thisEnrollment.page_views += thisAccess.view_score} // not media, so add to resource views
                     if (thisAccess.readable_name == 'Course Home') {thisEnrollment.home_page_views = thisAccess.view_score}
@@ -663,6 +665,7 @@
         userData[userID].anon_name = name;
     }
 
+    // Assign an anonomized name to each student
     function batchAnonymizeStudents() {
         // console.log('batchAnonymizeStudents');
         if (controls.aborted) {
@@ -1264,6 +1267,9 @@
             }, {
                 'name' : 'Canvas Term ID',
                 'src' : 'a.enrollment_term_id',
+            }, {
+                'name' : 'Assignments Due',
+                'src' : 'a.assignments_due',
             });
             fields.push(
                 {
