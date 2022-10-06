@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         Canvas API Reports
 // @namespace    https://github.com/djm60546/canvas-api-reports
-// @version      1.55
+// @version      1.56
 // @description  Script for extracting student and instructor performance data using the Canvas API. Generates a .CSV download containing the data. Based on the Access Report Data script by James Jones.
 // @author       Dan Murphy, Northwestern University School of Professional Studies (dmurphy@northwestern.edu)
 // @match        https://canvas.northwestern.edu/accounts/*
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/1.3.3/FileSaver.js
-// @require      https://code.jquery.com/jquery-3.4.1.js
-// @require      https://code.jquery.com/ui/1.12.1/jquery-ui.js
+// @require      https://code.jquery.com/jquery-3.6.0.js
+// @require      https://code.jquery.com/ui/1.13.2/jquery-ui.js
 // @grant        none
 
 // ==/UserScript==
@@ -419,7 +419,7 @@
     }
 
     // Count assignments completed, late or missing. Count discussions as a subset of assignments
-    // Some faculty enter a grade of zero for late assignments, so these are counted as missing/not counted as complete
+    // Some faculty enter a grade of zero for missing assignments, so these are counted as missing/not counted as complete
     function processStudentSubmissions() {
        // console.log('processStudentSubmissions');
         if (controls.aborted) {
@@ -1533,11 +1533,12 @@
             controls.rptDateStartTxt = $("#capir_start_date_txt").val();
             controls.rptDateEndTxt = $("#capir_end_date_txt").val();
             dS = Date.parse($("#capir_start_date_txt").val());
-            hS = dS.setHours(0,0,0,0);
+            hS = dS.setHours(0,0,0,0); // Reporting period begins at 00:00:00 AM of start date
             controls.rptDateStart = hS;
             dE = Date.parse($("#capir_end_date_txt").val());
-            hE = dE.setHours(24,0,0,0);
+            hE = dE.setHours(23,59,59,0); // Reporting period ends at 11:59:59 PM of end date
             controls.rptDateEnd = hE;
+            // console.log(hS + ", " + hE);
             $('#capir_date_range_p').html(controls.rptDateStartTxt + " - " + controls.rptDateEndTxt);
         } else {
             controls.rptDateStart = 0;
@@ -1610,6 +1611,11 @@
                 // Populates the term select menu in the "Select Report Options" dialog box
                 var terms = {data:[
                     {val : 0, txt: 'Select a term'},
+                    {val : 281, txt: '2023 Summer'},
+                    {val : 282, txt: '2023 Spring'},
+                    {val : 278, txt: '2023 Winter'},
+                    {val : 280, txt: '2022 Fall'},
+                    {val : 279, txt: '2022-2023 Academic Year'},
                     {val : 277, txt: '2022 Summer'},
                     {val : 276, txt: '2022 Spring'},
                     {val : 275, txt: '2022 Winter'},
@@ -1804,7 +1810,6 @@
     function addReportsLink() {
         if ($('#capir_access_report').length === 0) {
             $('#section-tabs').append('<li class="section"><a id="capir_access_report" style="color:#f92626; cursor:pointer">Custom API Reports<span class="screenreader-only">Custom API Reports</span></a></li>');
-            //$('#capir_access_report').one('click', reportOptionsDlg);
             $('#capir_access_report').one('click', reportOptionsDlg);
         }
         return;
