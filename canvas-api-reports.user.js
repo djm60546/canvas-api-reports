@@ -475,6 +475,7 @@
                 for (var i = 0; i < ddata.length; i++) {
                     progressbar(i, ddata.length);
                     var thisAssignment = ddata[i];
+                    if (!thisAssignment.published) {continue} // Skip unpublished assignments
                     var due = new Date(thisAssignment.due_at);
                     var dueMS = due.getTime();
                     if (dueMS == 0) {continue}
