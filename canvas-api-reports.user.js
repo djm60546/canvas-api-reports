@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Canvas API Reports
 // @namespace    https://github.com/djm60546/canvas-api-reports
-// @version      1.56
+// @version      1.57
 // @description  Script for extracting student and instructor performance data using the Canvas API. Generates a .CSV download containing the data. Based on the Access Report Data script by James Jones.
 // @author       Dan Murphy, Northwestern University School of Professional Studies (dmurphy@northwestern.edu)
 // @match        https://canvas.northwestern.edu/accounts/*
@@ -60,6 +60,7 @@
     controls.rptDateEndTxt = '';
     controls.rptType = 'none';
     controls.topicsIdx = 0;
+    controls.ancmntIdx = 0;
     controls.userArray = [];
     controls.userIndex = 0;
     controls.atRisk = {};
@@ -71,6 +72,7 @@
     controls.atRisk.scoreRaw = 70.00; // students enrollment.current_score in Canvas
     controls.atRisk.sbmssn = 0;
     controls.lateGradingIntvl = 604800000 // 7 day period for on-time grades in milliseconds
+    controls.anncmntCnt = 0;
 
     function errorHandler(e) {
         console.log(e.name + ': ' + e.message + 'at ' + e.stack);
@@ -144,6 +146,7 @@
             obj.graded_none_pcnt = currCourse.graded_none_pcnt;
             obj.feedback_count = currCourse.feedback_count;
             obj.feedback_mean_length = currCourse.feedback_mean_length;
+            obj.announcements = currCourse.announcements;
         }
     }
 
@@ -212,6 +215,10 @@
                     controls.topicsIdx++;
                 }
                 break;
+            case 'announcements':
+                var nURL = '/api/v1/courses/' + currCourse.course_id + '/discussion_topics?only_announcements=true&per_page=100';
+                countAnncmnts(nURL);
+                break;
             case 'instructor':
                 for (var id in enrollmentData) {
                     var thisEnrollment = enrollmentData[id];
@@ -254,7 +261,7 @@
                 if (thisUpdateMS > lastPostMS) {thisEnrollment.last_post_date = thisEntry.updated_at} // get most recent post date for all discussions
             }
         }
-        controller('instructor');
+        controller('announcements');
     }
 
      // Get the list of discussion topics for the current couurse
@@ -297,7 +304,6 @@
     }
 
     // Get the list of discussion topics for the current couurse
-
     function getTopics(tURL) {
         // console.log('getTopics');
         $('#capir_report_status').text('Getting discussion topics...');
@@ -305,13 +311,10 @@
             console.log('Aborted at getTopics()');
             return false;
         }
-        if (controls.aborted) {
-            console.log('Aborted at getTopics()');
-            return false;
-        }
         try {
             $.getJSON(tURL, function(tData, status, jqXHR) {
                 tURL = nextURL(jqXHR.getResponseHeader('Link')); // Get next page of results, if any
+  
                 if (tData) {
                     for (var i = 0; i < tData.length; i++) {
                         progressbar(i,tData.length);
@@ -328,6 +331,36 @@
                 }
             }).fail(function() {
                 var errorDetail = 'Topics query for course ' + currCourse.course_id + ' threw an error';
+                throw new Error(errorDetail);
+            });
+        } catch (e) {
+            errorHandler(e);
+        }
+    }
+
+     // Count the number of announcements for the current course
+    function countAnncmnts(nURL) {
+        var anncmntCnt = 0;
+        $('#capir_report_status').text('Counting instructor announcements...');
+        if (controls.aborted) {
+            console.log('Aborted at countAnncmnts()');
+            return false;
+        }
+        try {
+            $.getJSON(nURL, function(nData, status, jqXHR) {
+                nURL = nextURL(jqXHR.getResponseHeader('Link')); // Get next page of results, if any
+                if (nData) {
+                    anncmntCnt += nData.length;
+                }
+            }).done(function () {
+                if (nURL) {
+                    countAnncmnts(nData)
+                } else {
+                    currCourse.announcements = anncmntCnt;
+                    controller('instructor')
+                }
+            }).fail(function() {
+                var errorDetail = 'Count annoucements query for course ' + currCourse.course_id + ' threw an error';
                 throw new Error(errorDetail);
             });
         } catch (e) {
@@ -1125,6 +1158,9 @@
                 'name' : 'Total Page Views',
                 'src' : 'a.page_views'
             }, {
+                'name' : 'Announcements',
+                'src' : 'a.announcements'
+            },  {
                 'name' : 'Discussion Posts',
                 'src' : 'e.discussion_posts'
             }, {
@@ -1612,6 +1648,11 @@
                 // Populates the term select menu in the "Select Report Options" dialog box
                 var terms = {data:[
                     {val : 0, txt: 'Select a term'},
+                    {val : 287, txt: '2024 Summer'},
+                    {val : 286, txt: '2024 Spring'},
+                    {val : 285, txt: '2024 Winter'},
+                    {val : 284, txt: '2023 Fall'},
+                    {val : 283, txt: '2023-2024 Academic Year'},
                     {val : 281, txt: '2023 Summer'},
                     {val : 282, txt: '2023 Spring'},
                     {val : 278, txt: '2023 Winter'},
