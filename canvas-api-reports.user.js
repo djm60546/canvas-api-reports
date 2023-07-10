@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Canvas API Reports
 // @namespace    https://github.com/djm60546/canvas-api-reports
-// @version      1.57
+// @version      1.58
 // @description  Script for extracting student and instructor performance data using the Canvas API. Generates a .CSV download containing the data. Based on the Access Report Data script by James Jones.
 // @author       Dan Murphy, Northwestern University School of Professional Studies (dmurphy@northwestern.edu)
 // @match        https://canvas.northwestern.edu/accounts/*
@@ -44,6 +44,7 @@
     controls.aborted = false;
     controls.accessCount = 0;
     controls.accessIndex = 0;
+    controls.anncmntCnt = 0;
     controls.anonStdnts = true; // Anonymize student names and IDs
     controls.combinedRpt; // Make one report for all selected courses
     controls.canvasAcct = "21"; // SPS Canvas sub-account number
@@ -72,7 +73,6 @@
     controls.atRisk.scoreRaw = 70.00; // students enrollment.current_score in Canvas
     controls.atRisk.sbmssn = 0;
     controls.lateGradingIntvl = 604800000 // 7 day period for on-time grades in milliseconds
-    controls.anncmntCnt = 0;
 
     function errorHandler(e) {
         console.log(e.name + ': ' + e.message + 'at ' + e.stack);
@@ -217,6 +217,8 @@
                 break;
             case 'announcements':
                 var nURL = '/api/v1/courses/' + currCourse.course_id + '/discussion_topics?only_announcements=true&per_page=100';
+                controls.anncmntCnt = 0;
+                console.log('announcements');
                 countAnncmnts(nURL);
                 break;
             case 'instructor':
@@ -340,7 +342,6 @@
 
      // Count the number of announcements for the current course
     function countAnncmnts(nURL) {
-        var anncmntCnt = 0;
         $('#capir_report_status').text('Counting instructor announcements...');
         if (controls.aborted) {
             console.log('Aborted at countAnncmnts()');
@@ -350,13 +351,19 @@
             $.getJSON(nURL, function(nData, status, jqXHR) {
                 nURL = nextURL(jqXHR.getResponseHeader('Link')); // Get next page of results, if any
                 if (nData) {
-                    anncmntCnt += nData.length;
+                    for (var i = 0; i < nData.length; i++) {
+                        progressbar(6, 10);
+                        // Count only announcements with posted date
+                        if (nData[i].posted_at != null) {
+                            controls.anncmntCnt++;
+                        }
+                    }
                 }
             }).done(function () {
                 if (nURL) {
-                    countAnncmnts(nData)
+                    countAnncmnts(nURL)
                 } else {
-                    currCourse.announcements = anncmntCnt;
+                    currCourse.announcements = controls.anncmntCnt;
                     controller('instructor')
                 }
             }).fail(function() {
