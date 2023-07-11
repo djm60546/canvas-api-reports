@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Canvas API Reports
 // @namespace    https://github.com/djm60546/canvas-api-reports
-// @version      1.58
+// @version      1.59
 // @description  Script for extracting student and instructor performance data using the Canvas API. Generates a .CSV download containing the data. Based on the Access Report Data script by James Jones.
 // @author       Dan Murphy, Northwestern University School of Professional Studies (dmurphy@northwestern.edu)
 // @match        https://canvas.northwestern.edu/accounts/*
@@ -266,7 +266,7 @@
         controller('announcements');
     }
 
-     // Get the list of discussion topics for the current couurse
+     // Get the entries for each discussion topic in the current course
     function getTopicEntries(eURL) {
          // console.log('getTopicEntries');
          $('#capir_report_status').text('Getting discussion topic entries...');
@@ -316,13 +316,12 @@
         try {
             $.getJSON(tURL, function(tData, status, jqXHR) {
                 tURL = nextURL(jqXHR.getResponseHeader('Link')); // Get next page of results, if any
-  
                 if (tData) {
                     for (var i = 0; i < tData.length; i++) {
                         progressbar(i,tData.length);
                         var thisTopic = tData[i];
                         topics[thisTopic.id] = thisTopic;
-                        topicIDs.push(thisTopic.id);
+                        if (thisTopic.anonymous_state == null) {topicIDs.push(thisTopic.id)} // Omit full and partially anonymous discussions
                     }
                 }
             }).done(function () {
