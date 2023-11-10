@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Canvas API Reports
 // @namespace    https://github.com/djm60546/canvas-api-reports
-// @version      1.59
+// @version      1.6
 // @description  Script for extracting student and instructor performance data using the Canvas API. Generates a .CSV download containing the data. Based on the Access Report Data script by James Jones.
 // @author       Dan Murphy, Northwestern University School of Professional Studies (dmurphy@northwestern.edu)
 // @match        https://canvas.northwestern.edu/accounts/*
@@ -31,7 +31,7 @@
     var enrollmentData = {};
     var assignmentData = {};
     var accessData = [];
-    var atRiskArray = [];
+    var studentData = [];
     var instructorData = [];
     var submissionData = [];
     var tchrNameArray = [];
@@ -70,7 +70,7 @@
     controls.atRisk.mssg = 0
     controls.atRisk.time = 0;
     controls.atRisk.posts = 0;
-    controls.atRisk.scoreRaw = 70.00; // students enrollment.current_score in Canvas
+    controls.atRisk.scoreRaw = 70.00; // Low current score threshold
     controls.atRisk.sbmssn = 0;
     controls.lateGradingIntvl = 604800000 // 7 day period for on-time grades in milliseconds
 
@@ -154,15 +154,15 @@
     // Otherwise, students enrolled in multiple sections would match on the first occurance, resulting in errors
     function getEnrollmentID(userID) {
         // console.log('getEnrollmentID');
-        var enrollementID;
+        var enrollmentID;
         for (var id in enrollmentData) {
             var enrollment = enrollmentData[id];
             if (enrollment.user_id == userID && enrollment.course_id == currCourse.course_id) {
-                enrollementID = enrollmentData[id].id;
+                enrollmentID = enrollmentData[id].id;
                 break;
             }
         }
-        return enrollementID;
+        return enrollmentID;
     }
 
     function controller(state) {
@@ -183,6 +183,8 @@
                 if (controls.rptType == 'access' || controls.rptType == 'at-risk' || controls.rptType == 'instructor') {
                     aURL = '/courses/' + currCourse.course_id + '/users/' + controls.userArray[controls.userIndex] + '/usage.json?per_page=100';
                     getAccesses(aURL);
+                } else if (controls.rptType == 'final-grade') {
+                    processFinalGrades();
                 } else {
                     sURL = 'https://canvas.northwestern.edu/api/v1/courses/' + currCourse.course_id + '/students/submissions?student_ids[]=all&per_page=100';
                     sURL += controls.rptType == 'instructor' ? '&include[]=submission_comments' : '';
@@ -230,6 +232,20 @@
                 controller('course_done');
                 break;
         }
+    }
+
+    function processFinalGrades() {
+        for (var id in enrollmentData) {
+            var thisEnrollment = enrollmentData[id];
+            if (thisEnrollment.type != "StudentEnrollment" || typeof(thisEnrollment.grades.final_score) == "undefined") {continue}
+            thisEnrollment.score_final = thisEnrollment.grades.final_score;
+            thisEnrollment.grade_final = thisEnrollment.grades.final_grade;
+            thisEnrollment.grade_url = thisEnrollment.grades.html_url;
+            addCourseData(thisEnrollment);
+            studentData.push(thisEnrollment);
+            //console.log("in Controller() " + enrollmentData[id].grades.final_score)
+        }
+        controller('course_done');
     }
 
     function processTopicEntries() {
@@ -440,18 +456,19 @@
             var late = thisEnrollment.assignments_late;
             var missing = thisEnrollment.assignments_missing;
             var score = thisEnrollment.grades.current_score;
+            console.log("In processAtRisk() " + thisEnrollment.grades.final_score);
             if (controls.rptType == 'at-risk') {
                 if (late > controls.atRisk.late || missing > controls.atRisk.mssg || time === controls.atRisk.time || posts === controls.atRisk.posts || score == controls.atRisk.scoreRaw || submissions === controls.atRisk.sbmssn) {
-                    thisEnrollment.current_score = score < controls.atRisk.scoreRaw ? 'Low' : 'OK';
+                    thisEnrollment.current_score_status = score < controls.atRisk.scoreRaw ? 'Low' : 'OK';
                     thisEnrollment.discussion_posts = ' ' + posts + ' / ' + currCourse.discussions_due;
                     thisEnrollment.submitted = ' ' + submissions + ' / ' + currCourse.assignments_due;
                     addCourseData(thisEnrollment); // Add current course data to only those enrollments that will be reported
-                    atRiskArray.push(thisEnrollment);
+                    studentData.push(thisEnrollment);
                 }
             } else if (controls.rptType == 'participation' && submissions === 0) { // Zero participation criteria
                 thisEnrollment.submitted = ' ' + submissions + ' / ' + currCourse.assignments_due;
                 addCourseData(thisEnrollment); // Add current course data to only those enrollments that will be reported
-                atRiskArray.push(thisEnrollment);
+                studentData.push(thisEnrollment);
             }
         }
         controller('course_done');
@@ -743,7 +760,7 @@
             thisEnrollment.role = thisUserRole;
             thisEnrollment.page_views = 0;
             thisEnrollment.home_page_views = 0;
-            if (thisUserRole == "Student") {
+            if (thisUserRole == "Student" && controls.rptType == 'at-risk') {
                 thisEnrollment.submitted = 0;
                 thisEnrollment.assignments_late = 0;
                 thisEnrollment.max_days_late = 0;
@@ -786,12 +803,13 @@
         }
         try {
 
-            var eURL = '/api/v1/courses/' + currCourse.course_id + '/enrollments?per_page=100';
+            var eURL = '/api/v1/courses/' + currCourse.course_id + '/enrollments?per_page=100&include=[current_points]';
             eURL += controls.rptType == 'instructor' ? '&role[]=TeacherEnrollment' : '';
             $.getJSON(eURL, function(edata, status, jqXHR) {
                 if (edata) {
                     for (var i = 0; i < edata.length; i++) {
                         progressbar(i, edata.length);
+                        if (edata[i].user_id == "249004") {continue} // Omit Test Student
                         var thisEnrollment = edata[i];
                         enrollmentData[edata[i].id] = thisEnrollment;
                     }
@@ -910,7 +928,7 @@
             if (!controls.combinedRpt) { // Clear userData object if outputting a seperate report for each course
                 Object.keys(userData).forEach(function(key) { delete userData[key]; });
                 accessData = [];
-                atRiskArray = [];
+                studentData = [];
                 controls.accessIndex = 0;
                 controls.accessCount = 0;
             }
@@ -1021,7 +1039,7 @@
     // Report file generating functions below
 
     function outputReport() {
-        // console.log('outputReport');
+        //console.log('outputReport');
         var reportName = '';
         var rptDatesClean, rptDatesConcat;
         try {
@@ -1064,10 +1082,40 @@
     }
 
     function createCSV() {
-        // console.log('createCSV');
+        console.log('createCSV');
         var tatHrs;
         var fields
-        if (controls.rptType == 'at-risk' || controls.rptType == 'participation') {
+        if (controls.rptType == 'final-grade') {
+            fields = [ {
+                'name' : 'User ID',
+                'src' : 'u.id'
+            }, {
+                'name' : 'Login ID',
+                'src' : 'u.login_id'
+            }, {
+                'name' : 'Final Score',
+                'src' : 'e.score_final'
+            }, {
+                'name' : 'Final Letter Grade',
+                'src' : 'e.grade_final'
+            }, {
+                'name' : 'Quarter',
+                'src' : 'e.quarter_name',
+            }, {
+                'name' : 'Section',
+                'src' : 'e.section',
+            }, {
+                'name' : 'Short Course Code',
+                'src' : 'e.short_course_code',
+            }, {
+                'name' : 'Course Name',
+                'src' : 'e.course_name',
+            }, {
+                'name' : 'Student Grades Page',
+                'src' : 'e.grade_url'
+            }];
+        }
+        else if (controls.rptType == 'at-risk' || controls.rptType == 'participation') {
             fields = [ {
                 'name' : 'User ID',
                 'src' : 'u.id'
@@ -1110,7 +1158,7 @@
                 'fmt' : 'days'
             }, {
                 'name' : 'Current Score',
-                'src' : 'e.current_score',
+                'src' : 'e.current_score_status',
             }, {
                 'name' : 'Discussion Posts / Due',
                 'src' : 'e.discussion_posts'
@@ -1347,7 +1395,7 @@
                 currArray = instructorData;
                 break;
             default:
-                currArray = atRiskArray;
+                currArray = studentData;
                 }
         for (var i = 0; i < currArray.length; i++) {
             item = currArray[i];
@@ -1505,7 +1553,7 @@
         Object.keys(assignmentData).forEach(function(key) { delete assignmentData[key]; });
         submissionData = [];
         accessData = [];
-        atRiskArray = [];
+        studentData = [];
         controls.aborted = false;
         controls.accessCount = 0;
         controls.accessIndex = 0;
@@ -1717,6 +1765,7 @@
                     {val : '0', txt: 'Select a report type'},
                     {val : 'at-risk', txt: 'At-risk Students'},
                     {val : 'access', txt: 'Course Resource Access'},
+                    {val : 'final-grade', txt: 'Final Grades'},
                     {val : 'instructor', txt: 'Instructor Presence'},
                     {val : 'participation', txt: 'Zero Participation'},
                 ]};
@@ -1781,6 +1830,19 @@
                         controls.rptDateEnd = 0;
                         controls.rptDateStartTxt = '';
                         controls.rptDateEndTxt = '';
+                        $("#capir_rprt_prd_chbx").prop("disabled",true);
+                        $("#capir_rprt_prd_chbx").prop("checked",false);
+                        $('#capir_date_range_p').html('');
+                    }
+                    else if ($(this).children("option:selected").val() == 'final-grade')
+                    {
+                        $("#capir_anon_stdnt_chbx").prop("disabled",false);
+                        controls.rptDateStart = 0;
+                        controls.rptDateEnd = 0;
+                        controls.rptDateStartTxt = '';
+                        controls.rptDateEndTxt = '';
+                        $("#capir_anon_stdnt_chbx").prop("checked",false);
+                        $("#capir_anon_stdnt_chbx").prop("disabled",true);
                         $("#capir_rprt_prd_chbx").prop("disabled",true);
                         $("#capir_rprt_prd_chbx").prop("checked",false);
                         $('#capir_date_range_p').html('');
