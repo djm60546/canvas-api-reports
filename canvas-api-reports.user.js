@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Canvas API Reports
 // @namespace    https://github.com/djm60546/canvas-api-reports
-// @version      1.60
+// @version      1.61
 // @description  Script for extracting student and instructor performance data using the Canvas API. Generates a .CSV download containing the data. Based on the Access Report Data script by James Jones.
 // @author       Dan Murphy, Northwestern University School of Professional Studies (dmurphy@northwestern.edu)
 // @match        https://canvas.northwestern.edu/accounts/*
@@ -451,12 +451,13 @@
             var thisEnrollment = enrollmentData[id];
             if (thisEnrollment.role != 'Student') {continue}
             var submissions = thisEnrollment.submitted;
+            // console.log("thisEnrollment.id" + thisEnrollment.id + ", thisEnrollment.submitted = " + thisEnrollment.submitted);
             var time = thisEnrollment.total_activity_time;
             var posts = thisEnrollment.discussion_posts;
             var late = thisEnrollment.assignments_late;
             var missing = thisEnrollment.assignments_missing;
             var score = thisEnrollment.grades.current_score;
-            console.log("In processAtRisk() " + thisEnrollment.grades.final_score);
+            // console.log("processAtRisk:" + thisEnrollment.id);
             if (controls.rptType == 'at-risk') {
                 if (late > controls.atRisk.late || missing > controls.atRisk.mssg || time === controls.atRisk.time || posts === controls.atRisk.posts || score == controls.atRisk.scoreRaw || submissions === controls.atRisk.sbmssn) {
                     thisEnrollment.current_score_status = score < controls.atRisk.scoreRaw ? 'Low' : 'OK';
@@ -467,17 +468,19 @@
                 }
             } else if (controls.rptType == 'participation' && submissions === 0) { // Zero participation criteria
                 thisEnrollment.submitted = ' ' + submissions + ' / ' + currCourse.assignments_due;
+                // console.log(thisEnrollment.submitted);
                 addCourseData(thisEnrollment); // Add current course data to only those enrollments that will be reported
                 studentData.push(thisEnrollment);
             }
         }
+
         controller('course_done');
     }
 
     // Count assignments completed, late or missing. Count discussions as a subset of assignments
     // Some faculty enter a grade of zero for missing assignments, so these are counted as missing/not counted as complete
     function processStudentSubmissions() {
-       // console.log('processStudentSubmissions');
+       //console.log('processStudentSubmissions');
         if (controls.aborted) {
             console.log('Aborted at processStudentSubmissions()');
             return false;
@@ -760,20 +763,22 @@
             thisEnrollment.role = thisUserRole;
             thisEnrollment.page_views = 0;
             thisEnrollment.home_page_views = 0;
-            if (thisUserRole == "Student" && controls.rptType == 'at-risk') {
-                thisEnrollment.submitted = 0;
-                thisEnrollment.assignments_late = 0;
-                thisEnrollment.max_days_late = 0;
-                thisEnrollment.assignments_missing = 0;
-                thisEnrollment.max_days_missing = 0;
-                thisEnrollment.discussion_posts = 0;
-            } else if (thisUserRole == "Teacher" && (controls.rptType == 'at-risk' || controls.rptType == 'participation')) {
-                var tchrID = thisEnrollment.user_id;
-                var tchrName = userData[tchrID].name;
-                if (!/^NU-/.test(tchrName)) { // Do not include admins enrolled as teachers using their "NU-[name]" accounts
-                    var tchrEmail = userData[tchrID].email;
-                    tchrEmailArray.push(tchrEmail);
-                    tchrNameArray.push(tchrName);
+            if (controls.rptType == 'at-risk' || controls.rptType == 'participation') {
+                if (thisUserRole == "Student") {
+                    thisEnrollment.submitted = 0;
+                    thisEnrollment.assignments_late = 0;
+                    thisEnrollment.max_days_late = 0;
+                    thisEnrollment.assignments_missing = 0;
+                    thisEnrollment.max_days_missing = 0;
+                    thisEnrollment.discussion_posts = 0;
+                } else if (thisUserRole == "Teacher") {
+                    var tchrID = thisEnrollment.user_id;
+                    var tchrName = userData[tchrID].name;
+                    if (!/^NU-/.test(tchrName)) { // Do not include admins enrolled as teachers using their "NU-[name]" accounts
+                        var tchrEmail = userData[tchrID].email;
+                        tchrEmailArray.push(tchrEmail);
+                        tchrNameArray.push(tchrName);
+                    }
                 }
             } else if (controls.rptType == 'instructor') {
                 thisEnrollment.discussion_posts = 0;
