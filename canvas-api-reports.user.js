@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Canvas API Reports
 // @namespace    https://github.com/djm60546/canvas-api-reports
-// @version      1.61
+// @version      1.62
 // @description  Script for extracting student and instructor performance data using the Canvas API. Generates a .CSV download containing the data. Based on the Access Report Data script by James Jones.
 // @author       Dan Murphy, Northwestern University School of Professional Studies (dmurphy@northwestern.edu)
 // @match        https://canvas.northwestern.edu/accounts/*
@@ -237,8 +237,8 @@
     function processFinalGrades() {
         for (var id in enrollmentData) {
             var thisEnrollment = enrollmentData[id];
-            if (thisEnrollment.type != "StudentEnrollment" || typeof(thisEnrollment.grades.final_score) == "undefined") {continue}
-            thisEnrollment.score_final = thisEnrollment.grades.final_score;
+            if (thisEnrollment.type != "StudentEnrollment" || typeof(thisEnrollment.grades.current_score) == "undefined") {continue}
+            thisEnrollment.score_current = thisEnrollment.grades.current_score;
             thisEnrollment.grade_final = thisEnrollment.grades.final_grade;
             thisEnrollment.grade_url = thisEnrollment.grades.html_url;
             addCourseData(thisEnrollment);
@@ -1098,8 +1098,8 @@
                 'name' : 'Login ID',
                 'src' : 'u.login_id'
             }, {
-                'name' : 'Final Score',
-                'src' : 'e.score_final'
+                'name' : 'Current Score',
+                'src' : 'e.score_current'
             }, {
                 'name' : 'Final Letter Grade',
                 'src' : 'e.grade_final'
