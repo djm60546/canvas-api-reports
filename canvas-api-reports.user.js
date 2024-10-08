@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Canvas API Reports
 // @namespace    https://github.com/djm60546/canvas-api-reports
-// @version      1.62
+// @version      1.63
 // @description  Script for extracting student and instructor performance data using the Canvas API. Generates a .CSV download containing the data. Based on the Access Report Data script by James Jones.
 // @author       Dan Murphy, Northwestern University School of Professional Studies (dmurphy@northwestern.edu)
 // @match        https://canvas.northwestern.edu/accounts/*
@@ -1707,6 +1707,10 @@
                 // Populates the term select menu in the "Select Report Options" dialog box
                 var terms = {data:[
                     {val : 0, txt: 'Select a term'},
+                    {val : 391, txt: '2025 Spring'},
+                    {val : 390, txt: '2025 Winter'},
+                    {val : 389, txt: '2024 Fall'},
+                    {val : 388, txt: '2024-2025 Academic Year'},
                     {val : 287, txt: '2024 Summer'},
                     {val : 286, txt: '2024 Spring'},
                     {val : 285, txt: '2024 Winter'},
