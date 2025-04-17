@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Canvas API Reports
 // @namespace    https://github.com/djm60546/canvas-api-reports
-// @version      1.63
+// @version      1.64
 // @description  Script for extracting student and instructor performance data using the Canvas API. Generates a .CSV download containing the data. Based on the Access Report Data script by James Jones.
 // @author       Dan Murphy, Northwestern University School of Professional Studies (dmurphy@northwestern.edu)
 // @match        https://canvas.northwestern.edu/accounts/*
@@ -220,7 +220,7 @@
             case 'announcements':
                 var nURL = '/api/v1/courses/' + currCourse.course_id + '/discussion_topics?only_announcements=true&per_page=100';
                 controls.anncmntCnt = 0;
-                console.log('announcements');
+                //console.log('announcements');
                 countAnncmnts(nURL);
                 break;
             case 'instructor':
@@ -478,7 +478,6 @@
     }
 
     // Count assignments completed, late or missing. Count discussions as a subset of assignments
-    // Some faculty enter a grade of zero for missing assignments, so these are counted as missing/not counted as complete
     function processStudentSubmissions() {
        //console.log('processStudentSubmissions');
         if (controls.aborted) {
@@ -493,11 +492,11 @@
             var thisEnrollment = enrollmentData[getEnrollmentID(userID)];
             var thisAssignment = assignmentData[thisSubmission.assignment_id];
             if ((typeof(thisEnrollment) != 'undefined' && thisEnrollment) && (typeof(thisAssignment) != 'undefined' && thisAssignment)) {
-                if (thisSubmission.missing == false && thisSubmission.workflow_state != 'unsubmitted' && thisSubmission.entered_score != 0){
+                if (thisSubmission.missing == false && thisSubmission.workflow_state != 'unsubmitted' && thisSubmission.score != 0){
                     var submitted = thisEnrollment.submitted + 1;
                     thisEnrollment.submitted = submitted;
                 }
-                if (thisSubmission.submission_type == 'discussion_topic' && thisSubmission.workflow_state != 'unsubmitted' && thisSubmission.entered_score != 0){
+                if (thisSubmission.submission_type == 'discussion_topic' && thisSubmission.workflow_state != 'unsubmitted' && thisSubmission.score != 0){
                     var discussions = thisEnrollment.discussion_posts + 1;
                     thisEnrollment.discussion_posts = discussions;
                 }
@@ -507,7 +506,8 @@
                     var late = thisEnrollment.assignments_late + 1;
                     thisEnrollment.assignments_late = late;
                 }
-                if (thisSubmission.missing == true && (thisSubmission.workflow_state == 'unsubmitted' || thisSubmission.entered_score == 0)) {
+                // Some faculty enter a grade of zero for missing assignments, so zero grades are counted as missing missing assignments if there is also no date for the submission
+                if (thisSubmission.missing == true || (thisSubmission.score == 0 && thisSubmission.submitted_at == null)) {
                     var missing = thisEnrollment.assignments_missing + 1;
                     var timeMissing = thisSubmission.seconds_late;
                     if (timeMissing > thisEnrollment.max_days_missing) {thisEnrollment.max_days_missing = timeMissing}
@@ -630,6 +630,7 @@
             progressbar(i, arrayLen);
             var thisAccess = accessData[i];
             var userID = thisAccess.user_id;
+            console.log("Access" + userID);
             var thisEnrollment = enrollmentData[getEnrollmentID(userID)];
             if (typeof thisEnrollment !== 'undefined' && thisEnrollment) {
                 if (controls.rptType == 'access') {
@@ -814,6 +815,7 @@
                 if (edata) {
                     for (var i = 0; i < edata.length; i++) {
                         progressbar(i, edata.length);
+                        console.log("Enrollment" + edata[i].user_id);
                         if (edata[i].user_id == "249004") {continue} // Omit Test Student
                         var thisEnrollment = edata[i];
                         enrollmentData[edata[i].id] = thisEnrollment;
@@ -845,6 +847,7 @@
                 for (var i = 0; i < udata.length; i++) {
                     progressbar(i, udata.length);
                     var thisUser = udata[i];
+                    // console.log("Users = " + thisUser.id);
                     userData[thisUser.id] = thisUser;
                     controls.userArray.push(thisUser.id);
                 }
@@ -1707,6 +1710,8 @@
                 // Populates the term select menu in the "Select Report Options" dialog box
                 var terms = {data:[
                     {val : 0, txt: 'Select a term'},
+                    {val : 392, txt: '2025 Fall'},
+                    {val : 394, txt: '2025 Summer'},
                     {val : 391, txt: '2025 Spring'},
                     {val : 390, txt: '2025 Winter'},
                     {val : 389, txt: '2024 Fall'},
