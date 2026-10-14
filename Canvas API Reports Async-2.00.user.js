@@ -64,6 +64,9 @@
 
     var REPORT_TERMS = [
         { val: 0, txt: 'Select a term' },
+        { val: 403, txt: '2027 Fall' },
+        { val: 402, txt: '2027 Summer' },
+        { val: 400, txt: '2027 Spring' },
         { val: 399, txt: '2027 Winter' },
         { val: 398, txt: '2026 Fall' },
         { val: 401, txt: '2026-2027 Academic Year' },
