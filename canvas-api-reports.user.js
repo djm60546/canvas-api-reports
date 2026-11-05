@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Canvas API Reports Async
 // @namespace    https://github.com/djm60546/canvas-api-reports
-// @version      2.00
+// @version      2.01
 // @description  Script for extracting student and instructor performance data using the Canvas API. Generates CSV downloads. Refactored to use JavaScript promises, async/await, concurrency limits, and safer per-course state.
 // @author       Dan Murphy (dmurphy@northwestern.edu), Northwestern University School of Professional Studies
 // @match        https://canvas.northwestern.edu/accounts/*
@@ -718,7 +718,7 @@
                 searchBy +
                 '&per_page=100';
 
-            progressbar();
+            // progressbar();
 
             var courseIDs = await getCourseIdsAsync(cURL);
 
@@ -1947,48 +1947,55 @@
 
     function progressbar(current, total) {
         try {
-            if (typeof total === 'undefined' || typeof current === 'undefined') {
-                if ($('#capir_progress_dialog').length === 0) {
-                    $('body').append('<div id="capir_progress_dialog"></div>');
-                    $('#capir_progress_dialog').append('<div id="capir_report_name" style="font-size: 12pt; font-weight:bold"></div>');
-                    $('#capir_progress_dialog').append('<div id="capir_progressbar"></div>');
-                    $('#capir_progress_dialog').append('<div id="capir_report_status" style="font-size: 12pt; text-align: center"></div>');
-
-                    $('#capir_progress_dialog').dialog({
-                        title: 'Fetching Canvas Data',
-                        autoOpen: false,
-                        buttons: [
-                            {
-                                text: 'Cancel',
-                                click: function () {
-                                    $(this).dialog('close');
-                                    abortAll();
-                                    $('#capir_access_report').one('click', reportOptionsDlg);
-                                }
-                            }
-                        ]
-                    });
-
-                    $('.ui-dialog-titlebar-close').remove();
-                }
-
+            current
+            if ($('#capir_progress_dialog').length === 0) {initProgressDialog()}
+            if (typeof total === 'undefined' || typeof current == 'undefined' || controls.aborted) {
                 if ($('#capir_progress_dialog').dialog('isOpen')) {
                     $('#capir_progress_dialog').dialog('close');
                 } else {
-                    $('#capir_progressbar').progressbar({
-                        value: false
-                    });
-
+                    $('#capir_progressbar').progressbar({value: false});
+                    $('#capir_progressbar_label').text('');
                     $('#capir_progress_dialog').dialog('open');
                 }
-            } else if (!controls.aborted) {
-                var val = current > 0 && total > 0 ? Math.round((100 * current) / total) : false;
-                $('#capir_progressbar').progressbar('option', 'value', val);
+            } else {
+                var adjCurrent = current === 0 ? 1 : current;
+                var val = total > 0? Math.round((adjCurrent / total) * 100) : false;
+                $('#capir_progressbar').progressbar('option','value',val);
+                $('#capir_progressbar_label').text(adjCurrent + ' / ' + total);
             }
         } catch (e) {
             errorHandler(e);
         }
     }
+
+    function initProgressDialog() {
+        try {
+            $('body').append('<div id="capir_progress_dialog"></div>');
+            $('#capir_progress_dialog').append('<div id="capir_report_name" style="font-size: 12pt; font-weight:bold"></div>');
+            $('#capir_progress_dialog').append('<div id="capir_progressbar_wrapper" style="position:relative;"></div>');
+            $('#capir_progressbar_wrapper').append('<div id="capir_progressbar"></div>');
+            $("#capir_progressbar").progressbar({value: 0});
+            $('#capir_progressbar').children().first().css({'background-color' : '#cef', 'height': '20px'});
+            $('#capir_progressbar_wrapper').append('<div id="capir_progressbar_label" style="position: absolute; z-index: 1000; top: 0; margin-top: 0.24rem; width:100%; height:1.5rem; text-align:center; font-weight:bold"></div>');
+            $('#capir_progress_dialog').append('<div id="capir_report_status" style="font-size: 12pt; text-align: center"></div>');
+            $('#capir_progress_dialog').dialog({
+                'title' : 'Fetching Canvas Data',
+                'autoOpen' : false,
+                'buttons' : [ {
+                    'text' : 'Cancel',
+                    'click' : function() {
+                        $(this).dialog('close');
+                        controls.aborted = true;
+                        abortAll();
+                    }
+                }]
+            });
+            $('.ui-dialog-titlebar-close').remove(); // Remove titlebar close button forcing users to use form button
+        } catch (e) {
+            errorHandler(e);
+        }
+    }
+
 
     function dateOptionsDlgResult(result) {
         if (!result) {
@@ -2027,14 +2034,9 @@
     }
 
     function hideDatePickers() {
-        console.log('hidedatepickers fired');
-
-
         $('#capir_start_date_txt').datepicker.blur();
         $('#capir_end_date_txt').datepicker.blur();
-        console.log($(document.activeElement).prop("tagName"));
         $(document.activeElement).blur();
-        console.log($(document.activeElement).prop("id"));
 
         $('#capir_prtcptn_dts_dialog').trigger('click');
     }
@@ -2053,7 +2055,6 @@
                 $('#capir_prtcptn_dts_fldst').append('<input type="text" id="capir_end_date_txt" name="capir_end_date_txt">');
                 $('#capir_end_date_txt').datepicker({
                     onSelect: function() {
-                        console.log("Datepicker select.");
                         $('#capir_prtcptn_dts_dialog').select();
                     }
                 });
