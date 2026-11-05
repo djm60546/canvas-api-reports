@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Canvas API Reports Async
 // @namespace    https://github.com/djm60546/canvas-api-reports
-// @version      2.00
+// @version      2.01
 // @description  Script for extracting student and instructor performance data using the Canvas API. Generates CSV downloads. Refactored to use JavaScript promises, async/await, concurrency limits, and safer per-course state.
 // @author       Dan Murphy (dmurphy@northwestern.edu), Northwestern University School of Professional Studies
 // @match        https://canvas.northwestern.edu/accounts/*
